@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Χάρτης Καταγραφής Προβλημάτων</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+  <style>
+    #map { height: 100vh; }
+    .popup-form label { display: block; margin-top: 5px; }
+    .popup-form input, .popup-form select, .popup-form textarea {
+      width: 100%;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+<script>
+  const map = L.map('map').setView([38.175, 20.49], 13); // Κεφαλονιά
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors'
+  }).addTo(map);
+
+  function onMapClick(e) {
+    const lat = e.latlng.lat.toFixed(6);
+    const lng = e.latlng.lng.toFixed(6);
+
+    const popupContent = `
+      <div class="popup-form">
+        <strong>Καταγραφή Προβλήματος</strong><br>
+        <form onsubmit="submitForm(event, this, ${lat}, ${lng})">
+          <label>Κατηγορία:</label>
+          <select name="category">
+            <option>Λακκούβα</option>
+            <option>Σκουπίδια</option>
+            <option>Σπασμένο φως</option>
+          </select>
+          <label>Περιγραφή:</label>
+          <textarea name="description"></textarea>
+          <br>
+          <button type="submit">Υποβολή</button>
+        </form>
+      </div>
+    `;
+
+    L.marker([lat, lng]).addTo(map)
+      .bindPopup(popupContent)
+      .openPopup();
+  }
+
+  map.on('click', onMapClick);
+
+  function submitForm(event, form, lat, lng) {
+    event.preventDefault();
+    const data = {
+      category: form.category.value,
+      description: form.description.value,
+      latitude: lat,
+      longitude: lng
+    };
+
+    fetch("https://script.google.com/macros/s/AKfycbwEy0BMXgXSeopdGpGPBV72bP4rmgHe4C-otJhiuj3UzXIhJOGf0lP92TGDA63-NAeT/exec", {
+      method: "POST",
+      body: JSON.stringify(data),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    })
+    .then(res => res.text())
+    .then(res => {
+      form.closest('.leaflet-popup-content').innerHTML = '<b>✔ Η καταγραφή υποβλήθηκε!</b>';
+    })
+    .catch(err => {
+      alert("⚠️ Σφάλμα κατά την υποβολή!");
+      console.error(err);
+    });
+  }
+</script>
+</body>
+</html>
