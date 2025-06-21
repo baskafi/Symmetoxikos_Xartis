@@ -1,17 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Χάρτης Καταγραφής Προβλημάτων</title>
+  <title>Χάρτης Καταγραφής Προβλήματος</title>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
   <style>
     #map { height: 100vh; }
-    .popup-form label { display: block; margin-top: 5px; }
-    .popup-form input, .popup-form select, .popup-form textarea {
-      width: 100%;
-      box-sizing: border-box;
-    }
   </style>
 </head>
 <body>
@@ -19,66 +14,58 @@
 
 <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
 <script>
-  const map = L.map('map').setView([38.175, 20.49], 13); // Κεφαλονιά
+  const map = L.map('map').fitWorld();
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors'
   }).addTo(map);
 
-  function onMapClick(e) {
+  let currentMarker = null;
+
+  function placeOrMoveMarker(lat, lng) {
+    if (currentMarker) {
+      currentMarker.setLatLng([lat, lng]);
+    } else {
+      currentMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
+      currentMarker.on('dragend', function (e) {
+        const newLatLng = e.target.getLatLng();
+        updatePopup(newLatLng.lat.toFixed(6), newLatLng.lng.toFixed(6));
+      });
+    }
+    updatePopup(lat, lng);
+    currentMarker.openPopup();
+  }
+
+  function updatePopup(lat, lng) {
+    const formUrl = "https://docs.google.com/forms/d/e/1FAIpQLScO1k6VyrhxtJMTsvDuoGs50KjSugZUw7_eTH3uFsnw_Slm3w/viewform" +
+      "?usp=pp_url" +
+      "&entry.1361643033=" + lat +
+      "&entry.999647886=" + lng;
+
+    currentMarker.bindPopup(`<b>Θέση επιλέχθηκε</b><br>
+      <button onclick="window.location.href='${formUrl}'">Συμπλήρωσε τη φόρμα</button>`);
+  }
+
+  function onLocationFound(e) {
     const lat = e.latlng.lat.toFixed(6);
     const lng = e.latlng.lng.toFixed(6);
-
-    const popupContent = `
-      <div class="popup-form">
-        <strong>Καταγραφή Προβλήματος</strong><br>
-        <form onsubmit="submitForm(event, this, ${lat}, ${lng})">
-          <label>Κατηγορία:</label>
-          <select name="category">
-            <option>Λακκούβα</option>
-            <option>Σκουπίδια</option>
-            <option>Σπασμένο φως</option>
-          </select>
-          <label>Περιγραφή:</label>
-          <textarea name="description"></textarea>
-          <br>
-          <button type="submit">Υποβολή</button>
-        </form>
-      </div>
-    `;
-
-    L.marker([lat, lng]).addTo(map)
-      .bindPopup(popupContent)
-      .openPopup();
+    placeOrMoveMarker(lat, lng);
   }
 
-  map.on('click', onMapClick);
-
-  function submitForm(event, form, lat, lng) {
-    event.preventDefault();
-    const data = {
-      category: form.category.value,
-      description: form.description.value,
-      latitude: lat,
-      longitude: lng
-    };
-
-    fetch("https://script.google.com/macros/s/AKfycbwEy0BMXgXSeopdGpGPBV72bP4rmgHe4C-otJhiuj3UzXIhJOGf0lP92TGDA63-NAeT/exec", {
-      method: "POST",
-      body: JSON.stringify(data),
-      headers: {
-        "Content-Type": "application/json"
-      }
-    })
-    .then(res => res.text())
-    .then(res => {
-      form.closest('.leaflet-popup-content').innerHTML = '<b>✔ Η καταγραφή υποβλήθηκε!</b>';
-    })
-    .catch(err => {
-      alert("⚠️ Σφάλμα κατά την υποβολή!");
-      console.error(err);
-    });
+  function onLocationError(e) {
+    alert("Σφάλμα εντοπισμού θέσης: " + e.message);
   }
+
+  map.on('locationfound', onLocationFound);
+  map.on('locationerror', onLocationError);
+
+  map.on('click', function(e) {
+    const lat = e.latlng.lat.toFixed(6);
+    const lng = e.latlng.lng.toFixed(6);
+    placeOrMoveMarker(lat, lng);
+  });
+
+  map.locate({ setView: true, maxZoom: 17 });
 </script>
 </body>
 </html>
